@@ -6,12 +6,18 @@
 <title>Pixel Craft - GTA RP 500 Lines</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://npmcdn.com/parse/dist/parse.min.js"></script>
-<script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.161.0/build/three.module.js"
+  }
+}
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
 <style>
 body { margin: 0; font-family: "Rajdhani", sans-serif; background: #0a0f0a; color: #eaffd8; overflow: hidden; touch-action: none; }
 .pixel { font-family: "Press Start 2P", cursive; }
-#game { position: fixed; inset: 0; }
+#game { position: fixed; inset: 0; width: 100vw; height: 100vh; }
 .start-screen { position: fixed; inset: 0; z-index: 80; display: none; }
 .hud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); width: min(1200px, 95vw); z-index: 20; display: block; }
 .panel { background: #0f1f15cc; border: 1px solid #ffd70066; border-radius: 14px; backdrop-filter: blur(8px); padding: 12px; }
@@ -73,7 +79,8 @@ body { margin: 0; font-family: "Rajdhani", sans-serif; background: #0a0f0a; colo
 <button class="px-3 py-2 rounded-lg bg-cyan-300 text-cyan-950 font-bold" type="submit">Send</button>
 </form>
 </aside>
-<script>
+<script type="module">
+import * as THREE from 'three';
 Parse.initialize("aSbYvMkHhLDbNPEKlBppr9ZAE2fbtgGggRhLKzRP", "D0cPUHvYnCIJiaaCiENvFngHJRKWauMpgce7WU36");
 Parse.serverURL = "https://parseapi.back4app.com/";
 const game = document.getElementById("game");
