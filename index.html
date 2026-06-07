@@ -8,9 +8,10 @@
 {"imports":{"three":"https://unpkg.com/three@0.161.0/build/three.module.js"}}
 </script>
 <style>
-body{margin:0;overflow:hidden;background:#87CEEB}
+body{margin:0;overflow:hidden;background:#87CEEB;font-family:sans-serif;touch-action:none}
 #game{position:fixed;inset:0;width:100vw;height:100vh}
-#hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);color:#fff;background:#0008;padding:8px 16px;border-radius:8px;font-family:sans-serif;z-index:10}
+#hud{position:fixed;top:10px;left:50%;transform:translateX(-50%);color:#fff;background:#000a;padding:8px 16px;border-radius:8px;z-index:10}
+#prompt{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#ffd700;color:#000;padding:10px 20px;border-radius:8px;font-weight:700;display:none;z-index:10}
 #controls{position:fixed;left:20px;bottom:20px;display:grid;grid-template-columns:60px 60px 60px;gap:10px;z-index:10}
 #cam{position:fixed;right:20px;bottom:20px;display:flex;gap:10px;z-index:10}
 button{width:60px;height:60px;font-size:24px;border-radius:12px;border:3px solid #ffd700;background:linear-gradient(#ffd700,#ffaa00);color:#000;font-weight:700}
@@ -18,7 +19,8 @@ button{width:60px;height:60px;font-size:24px;border-radius:12px;border:3px solid
 </head>
 <body>
 <div id="game"></div>
-<div id="hud">Pixel Craft - Use buttons to move</div>
+<div id="hud">Pixel Craft | Gold: <span id="gold">0</span></div>
+<div id="prompt"></div>
 <div id="controls">
 <div></div><button id="up">↑</button><div></div>
 <button id="left">←</button><button id="down">↓</button><button id="right">→</button>
@@ -31,37 +33,110 @@ button{width:60px;height:60px;font-size:24px;border-radius:12px;border:3px solid
 import * as THREE from 'three';
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x87CEEB);
-scene.fog=new THREE.Fog(0x87CEEB,20,100);
+scene.fog=new THREE.Fog(0x87CEEB,50,200);
 const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 document.getElementById('game').appendChild(renderer.domElement);
-scene.add(new THREE.AmbientLight(0xffffff,0.7));
+scene.add(new THREE.AmbientLight(0xffffff,0.8));
 const light=new THREE.DirectionalLight(0xffffff,1);
-light.position.set(30,50,30);
+light.position.set(50,100,50);
 scene.add(light);
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0x3a9c3a}));
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(1000,1000),new THREE.MeshStandardMaterial({color:0x3a9c3a}));
 ground.rotation.x=-Math.PI/2;
 scene.add(ground);
-for(let x=-80;x<=80;x+=20){
-for(let z=-80;z<=80;z+=20){
-if(Math.abs(x)>40||Math.abs(z)>40){
-const box=new THREE.Mesh(new THREE.BoxGeometry(8,8,8),new THREE.MeshStandardMaterial({color:0x8B4513}));
-box.position.set(x,4,z);
-scene.add(box);
+for(let i=-480;i<480;i+=20){
+const road=new THREE.Mesh(new THREE.BoxGeometry(1000,0.1,6),new THREE.MeshStandardMaterial({color:0x333}));
+road.position.set(0,0.05,i);
+scene.add(road);
+const road2=new THREE.Mesh(new THREE.BoxGeometry(6,0.1,1000),new THREE.MeshStandardMaterial({color:0x333}));
+road2.position.set(i,0.05,0);
+scene.add(road2);
 }
 const player=new THREE.Mesh(new THREE.BoxGeometry(1,2,1),new THREE.MeshStandardMaterial({color:0xffdbac}));
 player.position.y=1;
 scene.add(player);
-let keys={up:0,down:0,left:0,right:0};
+const houses=[];
+let houseId=0;
+for(let x=-400;x<400;x+=16){
+for(let z=-400;z<400;z+=16){
+if(houseId>300)break;
+const group=new THREE.Group();
+const base=new THREE.Mesh(new THREE.BoxGeometry(6,4,6),new THREE.MeshStandardMaterial({color:0xd4a76a}));
+base.position.y=2;
+const roof=new THREE.Mesh(new THREE.ConeGeometry(4,3,4),new THREE.MeshStandardMaterial({color:0x8b4513}));
+roof.position.y=5.5;
+group.add(base,roof);
+group.position.set(x,0,z);
+group.userData={id:houseId,price:500,owned:false,ownerId:null};
+scene.add(group);
+houses.push(group);
+houseId++;
+}
+if(houseId>300)break;
+}
+const playerId=localStorage.getItem('pcraftId')||crypto.randomUUID();
+localStorage.setItem('pcraftId',playerId);
+let gold=parseInt(localStorage.getItem('pcraftGold')||'0');
+document.getElementById('gold').textContent=gold;
 let camRot=0;
+const keys={up:0,down:0,left:0,right:0};
+const goldEl=document.getElementById('gold');
+const promptEl=document.getElementById('prompt');
+function checkHouse(){
+let near=null;
+houses.forEach(h=>{
+if(player.position.distanceTo(h.position)<5)near=h;
+});
+if(near){
+if(!near.userData.owned){
+promptEl.textContent='Press E to buy house - 500 Gold';
+promptEl.style.display='block';
+}else if(near.userData.ownerId===playerId){
+promptEl.textContent='Your house - Press S to sell 400 Gold';
+promptEl.style.display='block';
+}else{
+promptEl.textContent='Owned by another player';
+promptEl.style.display='block';
+}
+}else{
+promptEl.style.display='none';
+}
+}
+function buyHouse(){
+houses.forEach(h=>{
+if(player.position.distanceTo(h.position)<5&&!h.userData.owned&&gold>=500){
+gold-=500;
+h.userData.owned=true;
+h.userData.ownerId=playerId;
+h.children[0].material.color.setHex(0xffd700);
+goldEl.textContent=gold;
+localStorage.setItem('pcraftGold',gold);
+}
+});
+}
+function sellHouse(){
+houses.forEach(h=>{
+if(player.position.distanceTo(h.position)<5&&h.userData.ownerId===playerId){
+gold+=400;
+h.userData.owned=false;
+h.userData.ownerId=null;
+h.children[0].material.color.setHex(0xd4a76a);
+goldEl.textContent=gold;
+localStorage.setItem('pcraftGold',gold);
+}
+});
+}
 function update(){
 if(keys.up){player.position.z-=0.2;player.position.x-=Math.sin(camRot)*0.2;player.position.z-=Math.cos(camRot)*0.2}
 if(keys.down){player.position.z+=0.2;player.position.x+=Math.sin(camRot)*0.2;player.position.z+=Math.cos(camRot)*0.2}
 if(keys.left)player.position.x-=0.2;
 if(keys.right)player.position.x+=0.2;
+player.position.x=Math.max(-480,Math.min(480,player.position.x));
+player.position.z=Math.max(-480,Math.min(480,player.position.z));
 camera.position.set(player.position.x+Math.sin(camRot)*15,player.position.y+10,player.position.z+Math.cos(camRot)*15);
 camera.lookAt(player.position);
+checkHouse();
 renderer.render(scene,camera);
 requestAnimationFrame(update);
 }
@@ -72,6 +147,10 @@ b.onpointerup=b.onpointerleave=()=>keys[k]=0;
 });
 document.getElementById('camL').onpointerdown=()=>camRot+=0.1;
 document.getElementById('camR').onpointerdown=()=>camRot-=0.1;
+addEventListener('keydown',e=>{
+if(e.key==='e'||e.key==='E')buyHouse();
+if(e.key==='s'||e.key==='S')sellHouse();
+});
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
 update();
 </script>
