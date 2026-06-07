@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Pixel Craft - GTA RP 500 Lines</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://npmcdn.com/parse/dist/parse.min.js"></script>
+<script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; font-family: "Rajdhani", sans-serif; background: #0a0f0a; color: #eaffd8; overflow: hidden; touch-action: none; }
+.pixel { font-family: "Press Start 2P", cursive; }
+#game { position: fixed; inset: 0; }
+.start-screen { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: linear-gradient(180deg, #87ceeb, #5ca052); }
+.start-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; transition: 0.3s; }
+.play-card { width: min(520px, 92vw); border: 3px solid #ffd700; background: #1a2a1add; border-radius: 18px; padding: 2rem; text-align: center; box-shadow: 0 20px 50px #000; }
+.input-name { width: 100%; padding: 12px; margin: 16px 0; border-radius: 8px; border: 2px solid #7adf8f; background: #0f1a0f; color: #fff; font-size: 1.1rem; text-align: center; }
+.play-btn { padding: 1rem 2rem; border-radius: 12px; border: 2px solid #ffd700; background: linear-gradient(180deg, #ffd700, #ffaa00); color: #000; font-weight: 700; font-size: 1.2rem; cursor: pointer; }
+.hud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); width: min(1200px, 95vw); z-index: 20; display: none; }
+.panel { background: #0f1f15cc; border: 1px solid #ffd70066; border-radius: 14px; backdrop-filter: blur(8px); padding: 12px; }
+.move-pad { position: fixed; left: 12px; bottom: 12px; z-index: 20; display: none; }
+.cam-pad { position: fixed; right: 12px; bottom: 12px; z-index: 20; display: none; }
+.cam-btn { width: 50px; height: 50px; border-radius: 12px; border: 2px solid #87ceeb; background: linear-gradient(180deg, #87ceeb, #5a9cc7); color: #000; font-size: 1.5rem; font-weight: 700; margin: 4px; }
+.move-btn { width: 60px; height: 60px; border-radius: 12px; border: 2px solid #ffd700; background: linear-gradient(180deg, #ffd700, #cc8800); color: #000; font-size: 1.2rem; font-weight: 700; }
+.drawer { position: fixed; top: 0; right: 0; width: min(400px, 95vw); height: 100vh; background: linear-gradient(180deg, #1b2b1f, #0f1a14); border-left: 2px solid #5db375; transform: translateX(100%); transition: transform 0.25s; z-index: 50; display: flex; flex-direction: column; }
+.drawer.open { transform: translateX(0); }
+.chat-messages::-webkit-scrollbar { width: 8px; }
+.chat-messages::-webkit-scrollbar-thumb { background: #46634d; border-radius: 999px; }
+.prompt { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); padding: 10px 20px; background: #ffd700; color: #000; border-radius: 8px; font-weight: 700; display: none; z-index: 30; }
+.wanted { position: fixed; top: 80px; right: 20px; padding: 8px 16px; background: #ff0000; color: #fff; border-radius: 8px; font-weight: 700; display: none; z-index: 30; }
+.jail { position: fixed; top: 120px; right: 20px; padding: 8px 16px; background: #666; color: #fff; border-radius: 8px; font-weight: 700; display: none; z-index: 30; }
+.minimap { position: fixed; top: 80px; left: 12px; width: 150px; height: 150px; background: #000a; border: 2px solid #ffd700; border-radius: 8px; z-index: 20; display: none; }
+.job-notify { position: fixed; bottom: 160px; left: 50%; transform: translateX(-50%); padding: 8px 16px; background: #00ff00; color: #000; border-radius: 8px; font-weight: 700; display: none; z-index: 30; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<section id="startScreen" class="start-screen">
+<div class="play-card">
+<p class="pixel text-sm mb-4">PIXEL CRAFT</p>
+<p class="text-lg text-yellow-100 mb-2">GTA Minecraft RP v2</p>
+<input id="nameInput" class="input-name" placeholder="Enter your name" maxlength="15" />
+<p class="text-sm text-yellow-200/80 mb-2">E buy | S sell | B build | R rob | J job | L low graphics</p>
+<button id="playBtn" class="play-btn">ENTER CITY</button>
+</div>
+</section>
+
+<div id="hud" class="hud">
+<div class="panel flex items-center justify-between">
+<h1 class="pixel text-xs">PIXEL CRAFT</h1>
+<div class="flex items-center gap-3">
+<p>Gold: <span id="goldCount" class="font-bold text-yellow-300">0</span></p>
+<p>Online: <span id="onlineCount" class="font-bold text-emerald-300">1</span></p>
+<button id="chatBtn" class="px-3 py-2 rounded-lg bg-amber-300 text-amber-950 font-bold">Chat</button>
+</div>
+</div>
+</div>
+
+<div id="movePad" class="move-pad panel p-3">
+<div class="grid grid-cols-3 gap-2">
+<div></div>
+<button class="move-btn" data-dir="up">↑</button>
+<div></div>
+<button class="move-btn" data-dir="left">←</button>
+<button class="move-btn" data-dir="down">↓</button>
+<button class="move-btn" data-dir="right">→</button>
+</div>
+</div>
+
+<div id="camPad" class="cam-pad panel p-2">
+<button class="cam-btn" id="camLeft">←</button>
+<button class="cam-btn" id="camRight">→</button>
+</div>
+
+<canvas id="minimap" class="minimap"></canvas>
+<div id="prompt" class="prompt"></div>
+<div id="wanted" class="wanted">WANTED: <span id="wantedLevel">0</span></div>
+<div id="jail" class="jail">JAIL: <span id="jailTime">0:00</span></div>
+<div id="jobNotify" class="job-notify">+25 Gold</div>
+
+<aside id="chatDrawer" class="drawer">
+<div class="p-4 border-b border-cyan-900 flex items-center justify-between">
+<h2 class="pixel text-xs">GLOBAL CHAT</h2>
+<button data-close="chat" class="text-2xl leading-none">×</button>
+</div>
+<div id="chatMessages" class="chat-messages p-4 space-y-2 overflow-y-auto flex-1"></div>
+<form id="chatForm" class="p-3 border-t border-cyan-900 flex gap-2">
+<input id="chatInput" maxlength="120" class="flex-1 rounded-lg px-3 py-2 bg-slate-900 text-slate-100 border-cyan-800 outline-none" placeholder="Talk..." />
+<button class="px-3 py-2 rounded-lg bg-cyan-300 text-cyan-950 font-bold" type="submit">Send</button>
+</form>
+</aside>
+
+<script>
+Parse.initialize("aSbYvMkHhLDbNPEKlBppr9ZAE2fbtgGggRhLKzRP", "D0cPUHvYnCIJiaaCiENvFngHJRKWauMpgce7WU36");
+Parse.serverURL = "https://parseapi.back4app.com/";
+
+const game = document.getElementById("game");
+const startScreen = document.getElementById("startScreen");
+const playBtn = document.getElementById("playBtn");
+const nameInput = document.getElementById("nameInput");
+const hud = document.getElementById("hud");
+const movePad = document.getElementById("movePad");
+const camPad = document.getElementById("camPad");
+const camLeft = document.getElementById("camLeft");
+const camRight = document.getElementById("camRight");
+const minimap = document.getElementById("minimap");
+const mctx = minimap.getContext("2d");
+const goldCount = document.getElementById("goldCount");
+const onlineCount = document.getElementById("onlineCount");
+const prompt = document.getElementById("prompt");
+const wanted = document.getElementById("wanted");
+const wantedLevel = document.getElementById("wantedLevel");
+const jail = document.getElementById("jail");
+const jailTime = document.getElementById("jailTime");
+const jobNotify = document.getElementById("jobNotify");
+const chatDrawer = document.getElementById("chatDrawer");
+const chatMessages = document.getElementById("chatMessages");
+const chatForm = document.getElementById("chatForm");
+const chatInput = document.getElementById("chatInput");
+const chatBtn = document.getElementById("chatBtn");
+
+let gameStarted = false;
+let nickname = "Player";
+let lowGraphics = false;
+let lastBankRob = 0;
+const playerId = localStorage.getItem("pcraftId") || crypto.randomUUID();
+localStorage.setItem("pcraftId", playerId);
+
+const state = { up: false, down: false, left: false, right: false, jump: false, speed: 0.18, velY: 0, grounded: true, gold: 0, wanted: 0, jailed: false, jailEndTime: 0, job: null, jobTimer: 0 };
+const others = new Map();
+const houses = [];
+const playerBlocks = [];
+const policeCars = [];
+const chatCache = [];
+const jobs = { hospital: { pos: [0, -40], pay: 25 }, school: { pos: [40, -40], pay: 20 }, police: { pos: [0, -200], pay: 30 } };
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 800);
+let camRotX = -0.3, camRotY = 0, camDist = 16;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+game.appendChild(renderer.domElement);
+
+const sun = new THREE.DirectionalLight(0xffffff, 1.3);
+sun.position.set(50, 100, 50);
+sun.castShadow = true;
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshStandardMaterial({ color: 0x4a9c4a }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+for (let i = -480; i < 480; i += 20) {
+const road = new THREE.Mesh(new THREE.BoxGeometry(1000, 0.1, 8), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
+road.position.set(0, 0.05, i);
+scene.add(road);
+const road2 = new THREE.Mesh(new THREE.BoxGeometry(8, 0.1, 1000), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
+road2.position.set(i, 0.05, 0);
+scene.add(road2);
+}
+
+function createBuilderPlayer(color = 0xffe08a) {
+const group = new THREE.Group();
+const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.4), new THREE.MeshStandardMaterial({ color }));
+body.position.y = 0.6;
+const head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), new THREE.MeshStandardMaterial({ color: 0xffdbac }));
+head.position.y = 1.55;
+const hat = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.2, 0.75), new THREE.MeshStandardMaterial({ color: 0x0066ff }));
+hat.position.y = 1.95;
+const lArm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 0.3), new THREE.MeshStandardMaterial({ color }));
+lArm.position.set(-0.55, 0.6, 0);
+const rArm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 0.3), new THREE.MeshStandardMaterial({ color }));
+rArm.position.set(0.55, 0.6, 0);
+const lLeg = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1, 0.35), new THREE.MeshStandardMaterial({ color: 0x222 }));
+lLeg.position.set(-0.25, -0.5, 0);
+const rLeg = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1, 0.35), new THREE.MeshStandardMaterial({ color: 0x222 }));
+rLeg.position.set(0.25, -0.5, 0);
+group.add(body, head, hat, lArm, rArm, lLeg, rLeg);
+return group;
+}
+
+const player = createBuilderPlayer(0xffe08a);
+player.position.set(0, 1, 0);
+scene.add(player);
+
+let houseId = 0;
+for (let x = -400; x < 400; x += 20) {
+for (let z = -400; z < 400; z += 32) {
+if (houseId >= 1000) break;
+const color = [0xd4a76a, 0xc19a6b, 0xb08d5f, 0x9c7c53, 0x8b6f47][houseId % 5];
+const group = new THREE.Group();
+const base = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 8), new THREE.MeshStandardMaterial({ color }));
+base.position.y = 2.5;
+base.castShadow = true;
+const roof = new THREE.Mesh(new THREE.ConeGeometry(5, 3, 4), new THREE.MeshStandardMaterial({ color: 0x8b4513 }));
+roof.position.y = 6.5;
+roof.castShadow = true;
+group.add(base, roof);
+group.position.set(x, 0, z);
+group.userData = { id: houseId, price: 1000, owned: false, ownerId: null, blocks: [] };
+scene.add(group);
+houses.push(group);
+houseId++;
+}
+if (houseId >= 1000) break;
+}
+
+const police = new THREE.Group();
+const pBase = new THREE.Mesh(new THREE.BoxGeometry(20, 8, 15), new THREE.MeshStandardMaterial({ color: 0x0047ab }));
+pBase.position.y = 4;
+pBase.castShadow = true;
+const pRoof = new THREE.Mesh(new THREE.BoxGeometry(22, 1, 17), new THREE.MeshStandardMaterial({ color: 0x002366 }));
+pRoof.position.y = 8.5;
+police.add(pBase, pRoof);
+police.position.set(0, 0, -200);
+scene.add(police);
+
+const bank = new THREE.Group();
+const bBase = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 15), new THREE.MeshStandardMaterial({ color: 0x555 }));
+bBase.position.y = 4;
+bBase.castShadow = true;
+const bSign = new THREE.Mesh(new THREE.PlaneGeometry(6, 2), new THREE.MeshStandardMaterial({ color: 0xffff00 }));
+bSign.position.set(0, 6, 7.6);
+bank.add(bBase, bSign);
+bank.position.set(80, 0, 0);
+bank.userData = { type: "bank" };
+scene.add(bank);
+
+const prison = new THREE.Group();
+const prBase = new THREE.Mesh(new THREE.BoxGeometry(25, 7, 25), new THREE.MeshStandardMaterial({ color: 0x444 }));
+prBase.position.y = 3.5;
+for (let i = 0; i < 8; i++) {
+const bar = new THREE.Mesh(new THREE.BoxGeometry(0.2, 5, 0.2), new THREE.MeshStandardMaterial({ color: 0x888 }));
+bar.position.set(-10 + i * 2.8, 6, 12.6);
+prison.add(bar);
+}
+prison.add(prBase);
+prison.position.set(-200, 0, 200);
+scene.add(prison);
+
+function checkCollision(nx, nz) {
+if (state.jailed) return true;
+for (const h of houses) {
+const dx = nx - h.position.x;
+const dz = nz - h.position.z;
+if (Math.abs(dx) < 5 && Math.abs(dz) < 5) return true;
+}
+for (const b of playerBlocks) {
+const dx = nx - b.mesh.position.x;
+const dz = nz - b.mesh.position.z;
+if (Math.abs(dx) < 0.8 && Math.abs(dz) < 0.8) return true;
+}
+return false;
+}
+
+function updateMinimap() {
+mctx.clearRect(0, 0, 150, 150);
+mctx.fillStyle = "#0a4a0a";
+mctx.fillRect(0, 0, 150, 150);
+const scale = 150 / 1000;
+const px = 75 + player.position.x * scale;
+const pz = 75 + player.position.z * scale;
+mctx.fillStyle = "#ffff00";
+mctx.fillRect(px - 2, pz - 2, 4, 4);
+houses.forEach(h => {
+const hx = 75 + h.position.x * scale;
+const hz = 75 + h.position.z * scale;
+mctx.fillStyle = h.userData.owned? "#ffd700" : "#8b4513";
+mctx.fillRect(hx - 1, hz - 1, 2, 2);
+});
+policeCars.forEach(c => {
+const cx = 75 + c.position.x * scale;
+const cz = 75 + c.position.z * scale;
+mctx.fillStyle = "#0047ab";
+mctx.fillRect(cx - 2, cz - 2, 4, 4);
+});
+}
+
+function updatePlayer() {
+if (!gameStarted) return;
+
+if (state.jailed) {
+const left = Math.max(0, state.jailEndTime - Date.now());
+const mins = Math.floor(left / 60000);
+const secs = Math.floor((left % 60000) / 1000).toString().padStart(2, "0");
+jailTime.textContent = `${mins}:${secs}`;
+if (left <= 0) {
+state.jailed = false;
+state.wanted = 0;
+player.position.set(0, 1, 0);
+jail.style.display = "none";
+}
+return;
+}
+
+let dx = 0, dz = 0;
+if (state.up) dz -= state.speed;
+if (state.down) dz += state.speed;
+if (state.left) dx -= state.speed;
+if (state.right) dx += state.speed;
+const nx = player.position.x + dx;
+const nz = player.position.z + dz;
+if (!checkCollision(nx, nz)) {
+player.position.x = Math.max(-480, Math.min(480, nx));
+player.position.z = Math.max(-480, Math.min(480, nz));
+}
+if (state.jump && state.grounded) {
+state.velY = 0.3;
+state.grounded = false;
+}
+state.velY -= 0.018;
+player.position.y += state.velY;
+if (player.position.y <= 1) {
+player.position.y = 1;
+state.velY = 0;
+state.grounded = true;
+}
+camera.position.set(player.position.x + Math.sin(camRotY) * Math.cos(camRotX) * camDist, player.position.y + 8 + Math.sin(camRotX) * camDist, player.position.z + Math.cos(camRotY) * Math.cos(camRotX) * camDist);
+camera.lookAt(player.position.x, player.position.y, player.position.z);
+
+let nearHouse = null;
+for (const h of houses) {
+if (player.position.distanceTo(h.position) < 6) {
+nearHouse = h;
+break;
+}
+if (nearHouse) {
+if (!nearHouse.userData.owned) prompt.textContent = "Press E to buy - 1000 Gold";
+else if (nearHouse.userData.ownerId === playerId) prompt.textContent = "Press S to sell - 800 Gold | B to build";
+else prompt.textContent = "Owned by player";
+prompt.style.display = "block";
+} else if (player.position.distanceTo(bank.position) < 10) {
+const cd = Math.ceil((600000 - (Date.now() - lastBankRob)) / 1000);
+prompt.textContent = cd > 0? `Bank cooldown: ${cd}s` : "Press R to ROB BANK - 5000 Gold";
+prompt.style.display = "block";
+} else {
+let nearJob = null;
+for (const j in jobs) {
+const pos = jobs[j].pos;
+if (Math.abs(player.position.x - pos[0]) < 10 && Math.abs(player.position.z - pos[1]) < 10) {
+nearJob = j;
+break;
+}
+prompt.textContent = nearJob? `Press J to work at ${nearJob} +${jobs[nearJob].pay} gold/5s` : "";
+prompt.style.display = nearJob? "block" : "none";
+}
+
+wanted.style.display = state.wanted > 0? "block" : "none";
+wantedLevel.textContent = state.wanted;
+jail.style.display = state.jailed? "block" : "none";
+updateMinimap();
+
+if (state.job && Date.now() - state.jobTimer > 5000) {
+state.gold += jobs[state.job].pay;
+goldCount.textContent = state.gold;
+state.jobTimer = Date.now();
+jobNotify.style.display = "block";
+setTimeout(() => jobNotify.style.display = "none", 1000);
+}
+}
+
+function robBank() {
+if (player.position.distanceTo(bank.position) < 10 &&!state.jailed && Date.now() - lastBankRob > 600000) {
+state.gold += 5000;
+state.wanted = 5;
+lastBankRob = Date.now();
+goldCount.textContent = state.gold;
+wantedLevel.textContent = 5;
+}
+}
+
+function spawnPolice() {
+if (state.wanted > 0 && policeCars.length < state.wanted) {
+const car = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 3), new THREE.MeshStandardMaterial({ color: 0x0047ab }));
+car.position.set(player.position.x + 20 + Math.random() * 10, 0.5, player.position.z + 20 + Math.random() * 10);
+car.castShadow = true;
+policeCars.push(car);
+scene.add(car);
+}
+}
+
+function updatePolice() {
+policeCars.forEach((car, i) => {
+const dx = player.position.x - car.position.x;
+const dz = player.position.z - car.position.z;
+const dist = Math.sqrt(dx * dx + dz * dz);
+if (dist > 0.5) {
+car.position.x += (dx / dist) * 0.2;
+car.position.z += (dz / dist) * 0.2;
+}
+if (dist < 2 &&!state.jailed) {
+state.jailed = true;
+state.jailEndTime = Date.now() + 60 * 60 * 1000;
+player.position.set(-200, 1, 200);
+state.wanted = 0;
+}
+});
+}
+
+function buyHouse() {
+for (const h of houses) {
+if (player.position.distanceTo(h.position) < 6 &&!h.userData.owned && state.gold >= 1000) {
+state.gold -= 1000;
+h.userData.owned = true;
+h.userData.ownerId = playerId;
+h.children[0].material.color.setHex(0xffd700);
+goldCount.textContent = state.gold;
+saveHouses();
+break;
+}
+}
+
+function sellHouse() {
+for (const h of houses) {
+if (player.position.distanceTo(h.position) < 6 && h.userData.ownerId === playerId) {
+state.gold += 800;
+h.userData.owned = false;
+h.userData.ownerId = null;
+h.children[0].material.color.setHex(0xd4a76a);
+goldCount.textContent = state.gold;
+saveHouses();
+break;
+}
+}
+
+function placeBlock() {
+for (const h of houses) {
+if (player.position.distanceTo(h.position) < 6 && h.userData.ownerId === playerId) {
+const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x8b5a2b }));
+block.position.set(player.position.x, player.position.y + 1, player.position.z);
+block.castShadow = true;
+scene.add(block);
+playerBlocks.push({ mesh: block, houseId: h.userData.id });
+h.userData.blocks.push({ x: block.position.x, y: block.position.y, z: block.position.z });
+saveHouses();
+break;
+}
+}
+
+function startJob(jobName) {
+for (const j in jobs) {
+const pos = jobs[j].pos;
+if (Math.abs(player.position.x - pos[0]) < 10 && Math.abs(player.position.z - pos[1]) < 10) {
+state.job = j;
+state.jobTimer = Date.now();
+break;
+}
+}
+
+function toggleGraphics() {
+lowGraphics =!lowGraphics;
+renderer.shadowMap.enabled =!lowGraphics;
+scene.fog = lowGraphics? null : new THREE.Fog(0x87ceeb, 50, 200);
+}
+
+async function savePlayer() {
+const q = new Parse.Query("PixelCraftPlayer");
+q.equalTo("playerId", playerId);
+let obj = await q.first();
+if (!obj) obj = new Parse.Object("PixelCraftPlayer");
+obj.set("playerId", playerId);
+obj.set("nickname", nickname);
+obj.set("x", player.position.x);
+obj.set("y", player.position.y);
+obj.set("z", player.position.z);
+obj.set("gold", state.gold);
+obj.set("wanted", state.wanted);
+obj.set("jailed", state.jailed);
+obj.set("jailEndTime", state.jailEndTime);
+await obj.save();
+}
+
+async function saveHouses() {
+const data = houses.map(h => ({
+id: h.userData.id,
+owned: h.userData.owned,
+ownerId: h.userData.ownerId,
+blocks: h.userData.blocks
+}));
+const q = new Parse.Query("PixelCraftHouses");
+let obj = await q.first();
+if (!obj) obj = new Parse.Object("PixelCraftHouses");
+obj.set("data", JSON.stringify(data));
+await obj.save();
+}
+
+async function loadHouses() {
+const q = new Parse.Query("PixelCraftHouses");
+const obj = await q.first();
+if (obj) {
+const data = JSON.parse(obj.get("data") || "[]");
+data.forEach(d => {
+const h = houses.find(hh => hh.userData.id === d.id);
+if (h) {
+h.userData.owned = d.owned;
+h.userData.ownerId = d.ownerId;
+h.userData.blocks = d.blocks || [];
+if (d.owned) h.children[0].material.color.setHex(0xffd700);
+d.blocks?.forEach(b => {
+const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0x8b5a2b }));
+block.position.set(b.x, b.y, b.z);
+block.castShadow = true;
+scene.add(block);
+playerBlocks.push({ mesh: block, houseId: d.id });
+});
+}
+});
+}
+}
+
+async function loadPlayer() {
+const q = new Parse.Query("PixelCraftPlayer");
+q.equalTo("playerId", playerId);
+const obj = await q.first();
+if (obj) {
+state.gold = obj.get("gold") || 0;
+state.wanted = obj.get("wanted") || 0;
+state.jailed = obj.get("jailed") || false;
+state.jailEndTime = obj.get("jailEndTime") || 0;
+goldCount.textContent = state.gold;
+if (state.jailed && state.jailEndTime > Date.now()) {
+player.position.set(-200, 1, 200);
+}
+}
+
+async function syncOthers() {
+const q = new Parse.Query("PixelCraftPlayer");
+q.greaterThan("updatedAt", new Date(Date.now() - 90 * 1000));
+q.notEqualTo("playerId", playerId);
+q.limit(50);
+const rows = await q.find();
+others.forEach(p => scene.remove(p.mesh));
+others.clear();
+rows.forEach(p => {
+const mesh = createBuilderPlayer(0x8ee7ff);
+mesh.position.set(p.get("x") || 0, p.get("y") || 1, p.get("z") || 0);
+scene.add(mesh);
+others.set(p.get("playerId"), { mesh });
+});
+onlineCount.textContent = others.size + 1;
+}
+
+async function syncChat() {
+const q = new Parse.Query("PixelCraftChat");
+q.descending("createdAt");
+q.limit(50);
+const rows = await q.find();
+const mapped = rows.reverse().map(m => ({ id: m.id, nickname: m.get("nickname"), text: m.get("text") }));
+const key = mapped.map(m => m.id).join("|");
+if (key!== chatCache.map(m => m.id).join("|")) {
+chatCache.length = 0;
+chatCache.push(...mapped);
+chatMessages.innerHTML = mapped.map(m => `
+<div class="p-2 rounded bg-slate-900/80 border-slate-700">
+<p class="text-cyan-300 font-bold text-sm">${m.nickname}</p>
+<p class="text-slate-100 text-sm">${m.text}</p>
+</div>
+`).join("");
+chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+}
+
+async function sendChat(text) {
+const msg = new Parse.Object("PixelCraftChat");
+msg.set("playerId", playerId);
+msg.set("nickname", nickname);
+msg.set("text", text.slice(0, 120));
+await msg.save();
+}
+
+function startGame() {
+nickname = nameInput.value.trim() || `Player${Math.floor(Math.random() * 900 + 100)}`;
+localStorage.setItem("pcraftName", nickname);
+gameStarted = true;
+startScreen.classList.add("hidden");
+hud.style.display = "block";
+movePad.style.display = "block";
+camPad.style.display = "block";
+minimap.style.display = "block";
+minimap.width = 150;
+minimap.height = 150;
+}
+
+playBtn.addEventListener("click", startGame);
+chatBtn.addEventListener("click", () => chatDrawer.classList.add("open"));
+document.querySelectorAll("[data-close='chat']").forEach(b => b.addEventListener("click", () => chatDrawer.classList.remove("open")));
+
+document.querySelectorAll(".move-btn").forEach(btn => {
+const dir = btn.dataset.dir;
+const on = () => state[dir] = true;
+const off = () => state[dir] = false;
+btn.addEventListener("mousedown", on);
+btn.addEventListener("mouseup", off);
+btn.addEventListener("touchstart", e => { e.preventDefault(); on(); });
+btn.addEventListener("touchend", off);
+});
+
+camLeft.addEventListener("mousedown", () => camRotY += 0.1);
+camRight.addEventListener("mousedown", () => camRotY -= 0.1);
+camLeft.addEventListener("touchstart", e => { e.preventDefault(); camRotY += 0.1; });
+camRight.addEventListener("touchstart", e => { e.preventDefault(); camRotY -= 0.1; });
+
+window.addEventListener("keydown", e => {
+if (state.jailed) return;
+if (e.key === "w" || e.key === "ArrowUp") state.up = true;
+if (e.key === "s" || e.key === "ArrowDown") state.down = true;
+if (e.key === "a" || e.key === "ArrowLeft") state.left = true;
+if (e.key === "d" || e.key === "ArrowRight") state.right = true;
+if (e.key === " ") state.jump = true;
+if (e.key === "e" || e.key === "E") buyHouse();
+if (e.key === "s" || e.key === "S") sellHouse();
+if (e.key === "b" || e.key === "B") placeBlock();
+if (e.key === "r" || e.key === "R") robBank();
+if (e.key === "p" || e.key === "P") state.wanted = Math.min(5, state.wanted + 1);
+if (e.key === "j" || e.key === "J") startJob();
+if (e.key === "l" || e.key === "L") toggleGraphics();
+});
+
+window.addEventListener("keyup", e => {
+if (e.key === "w" || e.key === "ArrowUp") state.up = false;
+if (e.key === "s" || e.key === "ArrowDown") state.down = false;
+if (e.key === "a" || e.key === "ArrowLeft") state.left = false;
+if (e.key === "d" || e.key === "ArrowRight") state.right = false;
+if (e.key === " ") state.jump = false;
+});
+
+let isDragging = false;
+window.addEventListener("mousedown", () => isDragging = true);
+window.addEventListener("mouseup", () => isDragging = false);
+window.addEventListener("mousemove", e => {
+if (isDragging) {
+camRotY -= e.movementX * 0.004;
+camRotX = Math.max(-1, Math.min(0.8, camRotX - e.movementY * 0.004));
+}
+});
+window.addEventListener("wheel", e => {
+camDist = Math.max(8, Math.min(40, camDist + e.deltaY * 0.02));
+});
+
+chatForm.addEventListener("submit", async e => {
+e.preventDefault();
+const val = chatInput.value.trim();
+if (val) {
+await sendChat(val);
+chatInput.value = "";
+}
+});
+
+window.addEventListener("resize", () => {
+camera.aspect = window.innerWidth / window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+async function init() {
+await loadHouses();
+await loadPlayer();
+animate();
+setInterval(savePlayer, 4000);
+setInterval(syncOthers, 3000);
+setInterval(syncChat, 2000);
+setInterval(spawnPolice, 3000);
+setInterval(updatePolice, 100);
+}
+
+function animate() {
+requestAnimationFrame(animate);
+updatePlayer();
+updatePolice();
+renderer.render(scene, camera);
+}
+
+init();
+</script>
+</body>
+</html>
